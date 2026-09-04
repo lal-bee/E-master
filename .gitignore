@@ -1,0 +1,18 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Environment
+.env
+
+# IDE
+.idea/
+.vscode/
+
+# Excel files
+*.xlsx
+*.xls
+
+# Logs
+*.log
