@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 
-from e_master.core.errors import SourceFileNotFoundError, UnsupportedFileTypeError
+from e_master.core.errors import (
+    CsvLoadError,
+    ExcelLoadError,
+    SourceFileNotFoundError,
+    UnsupportedFileTypeError,
+)
 from e_master.core.loader.loader import ExcelLoader
 from tests.helpers.workbooks import build_workbook, write_csv
 
@@ -59,3 +65,45 @@ def test_load_unsupported_type_raises(tmp_path):
     path.write_text("not excel", encoding="utf-8")
     with pytest.raises(UnsupportedFileTypeError):
         ExcelLoader().load(path)
+
+
+def test_load_xlsx_keeps_merged_top_left_content_and_physical_rows(merged_workbook):
+    raw = ExcelLoader().load(merged_workbook)
+    first = raw.sheets[0]
+
+    # 合并区域左上角内容保留，其余合并单元格为空字符串
+    assert first.data.iloc[0, 0] == "2024年设备主数据台账"
+    assert first.data.iloc[0, 1] == ""
+    assert first.data.iloc[0, 4] == ""
+    # 物理行号不变：第 2 行表头、第 3 行起数据
+    assert first.data.iloc[1, 0] == "设备编号"
+    assert first.data.iloc[2, 0] == "EQ-001"
+    assert first.data.iloc[3, 0] == "EQ-002"
+
+
+def test_load_corrupted_xlsx_raises_excel_load_error(tmp_path):
+    path = tmp_path / "broken.xlsx"
+    path.write_bytes(b"this is definitely not an excel zip archive")
+    with pytest.raises(ExcelLoadError):
+        ExcelLoader().load(path)
+
+
+def test_load_empty_csv_raises_csv_load_error(tmp_path):
+    path = tmp_path / "empty.csv"
+    path.write_bytes(b"")
+
+    with pytest.raises(CsvLoadError) as exc_info:
+        ExcelLoader().load(path)
+
+    # 底层 EmptyDataError 必须被转换为领域异常，不得直接泄漏
+    assert not isinstance(exc_info.value, pd.errors.EmptyDataError)
+    assert isinstance(exc_info.value.__cause__, pd.errors.EmptyDataError)
+    assert "空" in str(exc_info.value)
+
+
+def test_load_xlsm_minimal(xlsm_workbook):
+    raw = ExcelLoader().load(xlsm_workbook)
+    assert raw.file_type == "xlsm"
+    assert [sheet.sheet_name for sheet in raw.sheets] == ["设备台账"]
+    assert raw.sheets[0].data.iloc[0, 0] == "设备编号"
+    assert raw.sheets[0].data.iloc[1, 1] == "空压机"

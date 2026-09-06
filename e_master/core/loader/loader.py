@@ -84,6 +84,8 @@ class ExcelLoader:
         for encoding in ("utf-8-sig", "gb18030", "utf-8"):
             try:
                 frame = self._read_csv_with_encoding(path, encoding)
+            except pd.errors.EmptyDataError as exc:
+                raise CsvLoadError(f"CSV 文件为空或没有可解析内容: {path}") from exc
             except UnicodeDecodeError as exc:
                 last_error = exc
                 continue
