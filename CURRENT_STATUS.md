@@ -6,18 +6,19 @@
 ## 1. 当前版本
 
 - 正式基线：V1.0（P0-01 ~ P0-10，已完成）
-- 开发上下文：V1.1（`PROJECT_PLAN_V1.1.md` 已建立；P1-04 已完成，待验收）
+- 开发上下文：V1.1（`PROJECT_PLAN_V1.1.md` 已建立；P1-05 已完成，待验收）
 - 已进入的功能开发：P1-02 Excel 结构探查增强（已完成、已验收）；
   P1-03 字段映射引擎（已完成、已验收）；
-  P1-04 数据清洗引擎（已完成，待验收）
+  P1-04 数据清洗引擎（已完成、已验收）；
+  P1-05 设备类型编码映射（已完成，待验收）
 
 ## 2. 当前 Git 状态
 
 - 当前分支：`master`
-- 当前 commit：`7a6b0e3 feat: complete P1-02 and P1-03 field mapping foundation`
+- 当前 commit：`36c6a9a feat: complete P1-04 data cleaning engine`
 - 与 `origin/master`：`git status` 显示已同步（ahead 0）
 - V1.0 标签：`v1.0.0` 本地存在
-- 工作区：P1-02/P1-03 已 commit/push；P1-04 改动尚未 commit；
+- 工作区：P1-02/P1-03/P1-04 已 commit/push；P1-05 改动尚未 commit；
   `.env`、`.venv/`、缓存均已被忽略，未进入 Git
 - 未执行任何 push
 
@@ -26,11 +27,11 @@
 使用项目虚拟环境 `.venv\Scripts\python.exe -m pytest -q`：
 
 ```text
-224 passed
+254 passed
 ```
 
 其中：V1.0 原测试 141 项保持通过；P1-02 新增 19 项；P1-03 新增 30 项；
-P1-04 新增 34 项。
+P1-04 新增 34 项；P1-05 新增 30 项。
 
 ## 4. V1.0 状态
 
@@ -59,9 +60,10 @@ P0-01 ~ P0-10 全部完成：
 - 已完成阶段：V1.0 P0-01 ~ P0-10（基线）；
   V1.1 P1-02 Excel 结构探查增强（已完成、已验收）；
   V1.1 P1-03 字段映射引擎（已完成、已验收、已 commit/push）；
-  V1.1 P1-04 数据清洗引擎（已完成，待验收）
-- 当前阶段：P1-04：已完成，待验收
-- 下一阶段：P1-05：设备类型编码映射
+  V1.1 P1-04 数据清洗引擎（已完成、已验收、已 commit/push）；
+  V1.1 P1-05 设备类型编码映射（已完成，待验收）
+- 当前阶段：P1-05：已完成，待验收
+- 下一阶段：P1-06：标准模板生成
 
 ## 5.1 P1-02 实现记录
 
@@ -114,6 +116,22 @@ P0-01 ~ P0-10 全部完成：
 - 完整测试：224 passed
 - compileall：通过
 
+已 commit：`36c6a9a`，已 push 至 `origin/master`。
+
+## 5.4 P1-05 实现记录
+
+实际修改文件：
+
+- `excel_qc/equipment_type_mapping.py`：新增设备类型编码映射引擎；
+- `excel_qc/__init__.py`：新增 P1-05 公共导出；
+- `tests/qc/test_equipment_type_mapping.py`：新增 30 项 P1-05 测试。
+
+验证结果：
+
+- P1-05 新测试：30 passed
+- 完整测试：254 passed
+- compileall：通过
+
 尚未 commit、尚未 push。
 
 ## 6. 与 `PROJECT_PLAN_V1.1.md` 的基线核对结果
@@ -137,5 +155,5 @@ P0-01 ~ P0-10 全部完成：
 
 - 禁止修改 V1.0 业务逻辑、公共 API、测试逻辑；
 - 禁止删除旧项目 `e_master/`、旧 `tests/`、旧文档；
-- 禁止未经用户明确指令开发 P1-05 或任何后续 V1.1 功能；
+- 禁止未经用户明确指令开发 P1-06 或任何后续 V1.1 功能；
 - 禁止在未获明确要求时 push 远程仓库。
