@@ -15,7 +15,9 @@ V1.1 开发上下文：`PROJECT_PLAN_V1.1.md` 已建立，处于 P1-01 基线确
 上下文初始化已完成；P1-02 Excel 结构探查增强已验收；
 P1-03 字段映射引擎已验收，并已 commit/push（7a6b0e3）；
 P1-04 数据清洗引擎已验收，并已 commit/push（36c6a9a）；
-P1-05 设备类型编码映射已完成，待验收。
+P1-05 设备类型编码映射已完成、已 commit（本地 a2db5c5），
+暂未 push（GitHub HTTPS 443 网络连接失败，不阻塞后续开发）；
+P1-06 标准模板生成已完成技术实现，待验收。
 
 ## 3. 项目核心目标
 
@@ -71,9 +73,9 @@ V1.0 已形成模块级完整链路：导入 → 识别 → 选择 → 标准数
 
 ## 6. 当前测试状态
 
-- 总测试：254 passed；
+- 总测试：299 passed；
 - 其中 V1.0 原测试 141 项、P1-02 新增 19 项、P1-03 新增 30 项、
-  P1-04 新增 34 项、P1-05 新增 30 项；
+  P1-04 新增 34 项、P1-05 新增 30 项、P1-06 新增 45 项；
 - 运行方式：项目虚拟环境执行 `python -m pytest -q`；
 - 编译检查：`python -m compileall .` 通过。
 
@@ -89,6 +91,7 @@ V1.0 已形成模块级完整链路：导入 → 识别 → 选择 → 标准数
 | `excel_qc/format_check.py` | P0-07：按用户规则执行字段格式检查 |
 | `excel_qc/validation.py` | P0-08：把比对/格式结果统一为 `ValidationResult` |
 | `excel_qc/models.py` | P0 数据契约：结构、选择、标准、比对、格式、定位与统一结果模型 |
+| `excel_qc/template_generator.py` | P1-06：标准模板配置加载、内存装配、来源追溯、问题清单与 .xlsx 导出 |
 | `ui/display.py` | P0-09：`ValidationResult` → 展示数据模型与筛选 |
 | `ui/html.py` | P0-09：静态 HTML 页面渲染 |
 | `ui/excel_report.py` | P0-10：`ValidationResult` → `.xlsx` 核验报告 |
