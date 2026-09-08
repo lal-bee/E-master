@@ -29,6 +29,22 @@ from excel_qc.errors import (
     WorkbookReadError,
 )
 from excel_qc.comparison import compare_standard_mapping
+from excel_qc.field_mapping import (
+    FieldMappingConfig,
+    FieldMappingConfigError,
+    FieldMappingEntry,
+    FieldMappingError,
+    FieldMappingResult,
+    FieldMappingStatus,
+    FieldMappingSummary,
+    FieldMatchRule,
+    StandardFieldDefinition,
+    WorkbookFieldMappingResult,
+    load_field_mapping_config,
+    map_sheet_fields,
+    map_workbook_fields,
+    normalize_field_name,
+)
 from excel_qc.inspector import inspect_workbook
 from excel_qc.loader import load_workbook
 from excel_qc.models import (
@@ -56,6 +72,15 @@ from excel_qc.models import (
     ValidationSource,
     ValidationSummary,
     WorkbookSelection,
+)
+from excel_qc.profiler import (
+    FieldProfile,
+    HeaderCandidate,
+    ProfileIssue,
+    ProfileIssueLevel,
+    SheetProfile,
+    WorkbookProfile,
+    profile_workbook,
 )
 from excel_qc.selection import select_fields, validate_selection
 from excel_qc.standard import import_standard_dataset
@@ -108,15 +133,31 @@ __all__ = [
     "WorkbookReadError",
     "FieldSelection",
     "FieldSelectionRequest",
+    "FieldProfile",
     "FieldFormatRule",
+    "FieldMappingConfig",
+    "FieldMappingConfigError",
+    "FieldMappingEntry",
+    "FieldMappingError",
+    "FieldMappingResult",
+    "FieldMappingStatus",
+    "FieldMappingSummary",
+    "FieldMatchRule",
     "FormatCheckResult",
     "FormatConfigError",
     "FormatIssue",
     "FormatSummary",
     "FormatValueType",
+    "HeaderCandidate",
     "MappingCheckConfig",
+    "ProfileIssue",
+    "ProfileIssueLevel",
     "SheetSelection",
+    "SheetProfile",
+    "StandardFieldDefinition",
     "WorkbookSelection",
+    "WorkbookProfile",
+    "WorkbookFieldMappingResult",
     "compare_standard_mapping",
     "check_formats",
     "comparison_result_to_validation_result",
@@ -124,6 +165,11 @@ __all__ = [
     "import_standard_dataset",
     "inspect_workbook",
     "load_workbook",
+    "load_field_mapping_config",
+    "map_sheet_fields",
+    "map_workbook_fields",
+    "normalize_field_name",
+    "profile_workbook",
     "select_fields",
     "sort_validation_issues",
     "validate_selection",
