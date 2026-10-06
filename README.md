@@ -7,7 +7,7 @@
 
 > 原“Excel 格式转换工具”方向已终止；本仓库不再以格式转换为核心功能。
 
-## 当前进度：P0-01 ~ P0-10
+## 当前进度：P0-01 ~ P0-10，V1.1 P1-08
 
 - Excel 文件导入：`.xlsx` 只读读取、文件合法性检查、读取异常处理；
 - Sheet 识别：Sheet 名称与数量、空 Sheet、有效行列范围、数据行数；
@@ -26,6 +26,13 @@
   明细、筛选与详情（纯标准库静态 HTML）。
 - Excel 核验报告：只消费 ValidationResult，导出含“核验汇总”与
   “错误明细”的工作簿（.xlsx），不读取源 Excel、不重复核验。
+- P1-08 系统导出数据接入：按配置读取指定 `.xlsx` 的 Sheet 和物理表头行，
+  复用字段映射与清洗规则，返回标准化行、主键、来源单元格追溯、问题和统计；
+  缺失/歧义字段、空/重复主键和清洗失败均保留为问题，不丢行、不去重。
+  回源核验基准仍为最初收集的原始源文档。
+
+P1-08 技术验收通过；真实业务样本验证未完成，下一阶段 P1-09 尚未开始。真实系统字段、
+Sheet、主键和清洗口径仍需业务样本确认。演示配置不代表已适配真实系统。
 
 核心代码位于 [excel_qc/](excel_qc/)，测试位于 [tests/qc/](tests/qc/)。
 
@@ -35,7 +42,33 @@
 python -m pytest
 ```
 
-当前结果：141 passed（新阶段 115 项 + 旧代码回归 26 项）。
+当前实测：387 passed（实现前基线 371 项 + P1-08 专项 16 项）；
+`compileall -q .` 与 `git diff --check` 均通过。详见 [CURRENT_STATUS.md](CURRENT_STATUS.md)。
+
+## P1-08 最小示例
+
+演示配置和脚本： [system_export_demo.json](examples/system_export_demo.json) 与
+[system_export_demo.py](examples/system_export_demo.py)。先确认演示配置与输入文件结构
+一致，再运行：
+
+```powershell
+python examples/system_export_demo.py .\system-export.xlsx
+```
+
+代码也可直接调用：
+
+```python
+from excel_qc import ingest_system_export, load_system_export_config
+
+config = load_system_export_config("examples/system_export_demo.json")
+result = ingest_system_export("system-export.xlsx", config)
+for row in result.rows:
+    print(row.source_row_number, row.primary_key_value, row.values)
+for issue in result.issues:
+    print(issue.code, issue.row_number, issue.message)
+```
+
+配置和返回值细节见 [P1-08 接入说明](docs/p1-08-system-export.md)。
 
 ## 文档
 

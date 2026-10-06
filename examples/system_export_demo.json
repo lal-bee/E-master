@@ -1,0 +1,18 @@
+{
+  "_demo_only": "演示配置：并未适配任何真实业务系统导出模板，请按实际文件确认 Sheet、表头、字段别名、清洗规则和主键。",
+  "sheet_name": "设备清单",
+  "header_row_number": 2,
+  "standard_fields": [
+    {"name": "record_id", "aliases": ["记录号", "系统记录号"]},
+    {"name": "description", "aliases": ["设备描述", "描述"]},
+    {"name": "status", "aliases": ["状态"]}
+  ],
+  "cleaning_rules": [
+    {
+      "standard_field": "description",
+      "kind": "text",
+      "rule_code": "DEMO_TRIM_DESCRIPTION"
+    }
+  ],
+  "primary_key_fields": ["record_id"]
+}
