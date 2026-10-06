@@ -1,56 +1,38 @@
 # 当前项目状态
 
-> 更新时间：2026-10-06。本文状态按当前仓库、Git 和本轮实测更新。
+> 更新时间：2026-10-06。状态按仓库和本轮实测记录。
 
-## 1. 版本与 Git
+## 版本与阶段
 
-- 正式基线：V1.0（P0-01～P0-10）；P1-02～P1-06 的既有阶段记录见 Git 历史；
-- P1-07 导入前质量门禁：代码提交 `d8a311e`，技术实现完成，验收仍待用户确认；
-- P1-08 系统导出数据接入：技术验收通过；真实业务样本验证未完成；
-- 下一阶段：P1-09 回源核验引擎，尚未开始；
-- 当前分支：`master`。实现前 `HEAD` 为 `84b64fd`，且与 `origin/master` 相同；
-- 本轮不执行 commit、push、reset、revert 或清理文件；工作区改动均为本轮 P1-08。
+- 正式基线 V1.0（P0-01～P0-10）保持不变。
+- P1-08 系统导出数据接入已技术验收、提交并推送；基线提交为
+  `7cef5a061a6850bc628db955efe8e6b7445ff7ae`，开发 P1-09 前
+  `HEAD` 与 `origin/master` 一致，工作区干净。
+- P1-09 回源核验引擎：技术验收通过，用户已确认 Git 封版；真实业务样本验证尚未完成。
+- P1-10 尚未开始。
+- P1-07 提交 `d8a311e` 在 Git 历史中；其用户验收状态仍以阶段记录为准，
+  不因提交事实自行改写。
 
-## 2. P1-08 范围与接口
+## P1-09 实现
 
-新增 `excel_qc/system_export.py`。入口为 `ingest_system_export(path, config)`，
-配置包含系统导出 Sheet 名、物理表头行、标准字段及别名、复用的 P1-04 清洗规则、
-单字段或组合主键。Excel 只读，接入复用 P0 loader、P1-02 profiler、P1-03
-field_mapping 和 P1-04 cleaning。
+`excel_qc/source_verification.py` 提供
+`verify_source_against_system_export(original_source_path, system_export_path, config)`。
+原始源侧以现有 loader、profiler、field_mapping、cleaning 标准化，系统侧直接
+复用 P1-08 公共接入接口。两侧分别配置 Sheet、单行物理表头、字段映射和清洗，
+按配置的单字段或组合主键匹配，仅比较明确配置的标准字段。
 
-返回 `SystemExportWorkbookResult`，包含源文件、Sheet、表头坐标、逐行标准化数据、
-逐字段来源追溯、问题明细、统计汇总，并提供底层 mapping/cleaning 结果供后续模块消费。
-来源追溯包括物理行号、原字段名、列号/列字母、标准字段名、原始值、标准化值、
-应用规则及映射状态。问题包含 Sheet/表头/字段映射异常、缺失字段、清洗失败、
-空主键和重复主键。异常记录不丢弃，重复键不覆盖、不去重。
+结果包括两侧标准化行、原始值与处理值、规则、文件/Sheet/物理单元格坐标、
+行级分类、字段差异、问题和分项统计。空键、重复键、关键字段缺失或歧义、
+清洗失败都会保留记录并阻止不可靠的“全部一致”结论。两侧文件只读；不输出报告。
+演示脚本为 `examples/source_verification_demo.py`，自行创建临时 Excel，
+配置仅供演示。接口和统计口径见 `docs/p1-09-source-verification.md`。
 
-演示配置与调用脚本：`examples/system_export_demo.json`、
-`examples/system_export_demo.py`。示例仅作接口演示，没有声称适配真实系统导出模板。
+## 测试与限制
 
-限制：当前支持 `.xlsx` 和每次调用一个指定 Sheet；表头按单行配置；不推断主键，
-不补 Excel 数值单元格中已丢失的编码前导零。文本编码的前导零会保留。真实系统字段、
-Sheet、主键含义、空值和清洗口径仍需真实导出样本确认。
-
-## 3. 测试与检查
-
-- 实现前基线：项目虚拟环境 `.venv\Scripts\python.exe -m pytest -q`，实测
-  `371 passed`；
-- P1-08 专项：`tests/qc/test_system_export.py`，16 项通过；
-- 本轮完整回归：`387 passed`（371 项基线 + 16 项 P1-08）；
-- `.venv\Scripts\python.exe -m compileall -q .`：通过；
-- `git diff --check`：通过；有 Git 关于 LF/CRLF 的提示，无空白错误。
-
-## 4. 阶段边界
-
-- 本轮只实现 P1-08；
-- P1-09 的双数据源匹配、字段差异比较和差异分类尚未开始；
-- P1-10 报告、AI 辅助、UI 整合和批量任务系统尚未开始；
-- 回源核验的正确基准是最初收集的原始源文档，整理后的导入模板不能替代它。
-- 技术验收结论记录于 `docs/p1-08-system-export.md`；真实系统模板、字段和业务规则
-  仍待样本验证，未因此启动 P1-09。
-
-## 5. 历史提交状态更正
-
-旧状态曾记录 P1-05/P1-06 暂未推送及 P1-07 未提交。当前 Git 显示 `HEAD` 与
-`origin/master` 同为 `84b64fd`，P1-05、P1-06 和 P1-07 对应提交均在其历史中；
-因此不再保留“当前尚未推送/尚未提交”的旧说法。提交事实不改变各阶段是否已被用户验收。
+- 开发前完整回归：`.venv\Scripts\python.exe -m pytest -q`，387 passed。
+- P1-09 专项：21 passed；完整回归：408 passed；
+  `.venv\Scripts\python.exe -m compileall -q .` 通过；
+  `git diff --check` 通过。详见阶段设计文档。
+- 仅支持 `.xlsx`，每侧一次指定一个 Sheet、单行表头；不推断主键变化，
+  不补回 Excel 已丢失的文本前导零。业务字段、规则、主键及真实样本待确认。
+- 回源核验基准必须是最初收集的原始源文档，整理后的导入模板不能替代。
