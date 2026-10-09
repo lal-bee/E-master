@@ -15,7 +15,7 @@ V1.1 开发上下文：`PROJECT_PLAN_V1.1.md` 已建立。P1-02～P1-06 按既�
 记录完成；P1-05、P1-06 对应提交现已包含在 `origin/master`。P1-07 技术实现
 已提交（`d8a311e`），验收状态仍待用户确认。P1-08 技术验收通过并已提交推送。
 用户已明确启动 P1-09；技术验收通过，用户已确认 Git 封版。真实业务样本验证
-尚未完成；P1-10 尚未开始。
+尚未完成。用户已明确启动 P1-10；实现及技术验证完成，待用户验收。P1-11 尚未开始。
 
 ## 3. 项目核心目标
 
@@ -49,7 +49,8 @@ UI 展示 / Excel 核验报告
 分层规则：
 
 - `excel_qc/`：核心领域层，负责导入、识别、选择、标准数据、比对、格式检查、统一结果；
-- `ui/`：结果展示与报告层，只消费 `ValidationResult`；
+- `ui/`：结果展示与报告层；V1.0 入口只消费 `ValidationResult`，
+  P1-10 独立报告入口只消费 `SourceVerificationResult`；
 - 上层不得重新实现下层核验逻辑；
 - 业务规则与核心代码分离，核心引擎不硬编码具体业务概念。
 
@@ -73,6 +74,8 @@ V1.0 已形成模块级完整链路：导入 → 识别 → 选择 → 标准数
 
 - P1-09 开发前基线：387 passed；本阶段专项 21 passed、完整回归 408 passed；
   详细验证见 `docs/p1-09-source-verification.md`；
+- P1-10 开发前完整回归：408 passed；本阶段专项 16 passed、完整回归 424 passed；
+  详细验证见 `docs/p1-10-verification-report.md`；
 - 其中 V1.0 原测试 141 项、P1-02 新增 19 项、P1-03 新增 30 项、
   P1-04 新增 34 项、P1-05 新增 30 项、P1-06 新增 45 项、
   P1-07 新增 72 项；
@@ -95,6 +98,7 @@ V1.0 已形成模块级完整链路：导入 → 识别 → 选择 → 标准数
 | `excel_qc/quality_gate.py` | P1-07：导入前质量门禁、严重级别、PASS/FAIL、聚合统计（纯内存） |
 | `excel_qc/system_export.py` | P1-08：按配置接入系统导出 `.xlsx`，复用字段映射/清洗并保留来源追溯 |
 | `excel_qc/source_verification.py` | P1-09：原始源与系统导出分别标准化、唯一键匹配、配置字段比较及问题/统计（纯内存） |
+| `ui/source_verification_report.py` | P1-10：消费 P1-09 结果，导出四 Sheet .xlsx 报告，不重算核验结论 |
 | `ui/display.py` | P0-09：`ValidationResult` → 展示数据模型与筛选 |
 | `ui/html.py` | P0-09：静态 HTML 页面渲染 |
 | `ui/excel_report.py` | P0-10：`ValidationResult` → `.xlsx` 核验报告 |
@@ -104,7 +108,7 @@ V1.0 已形成模块级完整链路：导入 → 识别 → 选择 → 标准数
 1. 原始 Excel 只读，任何阶段不得改写用户业务文件或标准文件；
 2. 业务规则（设备类型、编码、单位等）不硬编码到核心引擎；
 3. UI 层不得重新执行核验逻辑，只消费 `ValidationResult`；
-4. Excel 报告层只消费 `ValidationResult`，不读取业务 Excel，不重复执行
+4. P0-10 Excel 报告层只消费 `ValidationResult`，不读取业务 Excel，不重复执行
    P0-06/P0-07；
 5. P0-06 只做标准映射比对，P0-07 只做格式检查，两者结果由 P0-08 并存统一；
 6. 错误定位依赖已记录的 Sheet、物理行号、列号与列字母，不重新猜测表头；
@@ -190,7 +194,10 @@ P1-08 技术验收依据及真实样本待确认项见 `docs/p1-08-system-export
 P1-09 当前边界：以最初收集的原始源文档为基准，仅比较配置字段；空键、
 重复键、缺失字段、映射歧义及清洗失败不产生虚假的全部一致结论。
 `KEY_CHANGED` 不从普通缺失/新增中推断。结果仅在内存中，示例配置仅供演示；
-具体口径见 `docs/p1-09-source-verification.md`。未经明确指令不得进入 P1-10。
+具体口径见 `docs/p1-09-source-verification.md`。
+
+P1-10 当前边界：仅导出 P1-09 内存结果；四 Sheet 报告、值序列化与覆盖保护
+见 `docs/p1-10-verification-report.md`。未经明确指令不得进入 P1-11。
 
 ### 11.4 参考文档
 

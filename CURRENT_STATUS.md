@@ -9,7 +9,8 @@
   `7cef5a061a6850bc628db955efe8e6b7445ff7ae`，开发 P1-09 前
   `HEAD` 与 `origin/master` 一致，工作区干净。
 - P1-09 回源核验引擎：技术验收通过，用户已确认 Git 封版；真实业务样本验证尚未完成。
-- P1-10 尚未开始。
+- P1-10 核验报告：实现及技术验证完成，待用户验收；真实业务样本验证尚未完成。
+- P1-11 尚未开始。本轮 P1-10 改动未提交、未推送。
 - P1-07 提交 `d8a311e` 在 Git 历史中；其用户验收状态仍以阶段记录为准，
   不因提交事实自行改写。
 
@@ -36,3 +37,15 @@
 - 仅支持 `.xlsx`，每侧一次指定一个 Sheet、单行表头；不推断主键变化，
   不补回 Excel 已丢失的文本前导零。业务字段、规则、主键及真实样本待确认。
 - 回源核验基准必须是最初收集的原始源文档，整理后的导入模板不能替代。
+
+## P1-10 报告
+
+`ui/source_verification_report.py` 提供
+`export_source_verification_report(result, output_path, overwrite=False)`，
+仅消费 P1-09 内存结果，导出“核验概要”“差异统计”“差异明细”“异常记录”
+四个 Sheet。完成状态与数据一致性分开表达；差异字段和问题来源可追溯。
+默认拒绝覆盖，任何情况下都禁止覆盖两侧输入文件，写入失败保留已有报告。
+演示脚本和具体口径见 `examples/source_verification_report_demo.py`、
+`docs/p1-10-verification-report.md`。开发前完整回归为 408 passed。
+本阶段专项 16 passed、完整回归 424 passed；全项目编译、
+`git diff --check` 及临时 Excel 演示运行通过。详见阶段文档。

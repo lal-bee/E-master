@@ -7,7 +7,7 @@
 
 > 原“Excel 格式转换工具”方向已终止；本仓库不再以格式转换为核心功能。
 
-## 当前进度：P0-01 ~ P0-10，V1.1 P1-09
+## 当前进度：P0-01 ~ P0-10，V1.1 P1-10
 
 - Excel 文件导入：`.xlsx` 只读读取、文件合法性检查、读取异常处理；
 - Sheet 识别：Sheet 名称与数量、空 Sheet、有效行列范围、数据行数；
@@ -33,9 +33,12 @@
 - P1-09 回源核验引擎：原始源文档与系统导出分别映射、清洗后，按配置主键
   唯一匹配，仅比较指定字段；保留两侧原值、处理值、物理坐标、问题和统计。
   空键、重复键、映射歧义及清洗失败阻止不可靠的整体完成结论。
+- P1-10 核验报告：只消费 P1-09 结果，导出核验概要、差异统计、差异明细、
+  异常记录四个中文 Sheet；默认拒绝覆盖，保留字段变化和问题来源。
 
 P1-08 技术验收通过；P1-09 技术验收通过，用户已确认 Git 封版。
-真实业务样本验证未完成，P1-10 尚未开始。两侧字段、Sheet、主键和清洗/比较口径
+P1-10 实现及技术验证完成，待用户验收；P1-11 尚未开始。
+真实业务样本验证未完成。两侧字段、Sheet、主键和清洗/比较口径
 仍需业务样本确认。演示配置不代表已适配真实系统。
 
 核心代码位于 [excel_qc/](excel_qc/)，测试位于 [tests/qc/](tests/qc/)。
@@ -49,6 +52,26 @@ python -m pytest
 P1-09 开发前实测：387 passed；本轮专项 21 passed、完整回归 408 passed。
 编译检查及 `git diff --check` 通过。详情见
 [P1-09 回源核验说明](docs/p1-09-source-verification.md) 与 [CURRENT_STATUS.md](CURRENT_STATUS.md)。
+
+P1-10 开发前完整回归实测 408 passed；本阶段专项 16 passed、完整回归
+424 passed，编译及 `git diff --check` 通过。细节见
+[P1-10 核验报告说明](docs/p1-10-verification-report.md)。
+
+## P1-10 最小示例
+
+```python
+from excel_qc import verify_source_against_system_export
+from ui import export_source_verification_report
+
+result = verify_source_against_system_export(source_path, export_path, config)
+report_path = export_source_verification_report(result, "verification-report.xlsx")
+```
+
+临时生成两份演示 Excel、核验并导出报告：
+
+```powershell
+.\.venv\Scripts\python.exe examples\source_verification_report_demo.py
+```
 
 ## P1-09 最小示例
 
