@@ -197,6 +197,26 @@ def load_system_export_config(path: str | Path) -> SystemExportConfig:
         raise SystemExportConfigError(str(exc)) from exc
 
 
+def profile_configured_sheet(
+    path: str | Path, sheet_name: str, header_row_number: int,
+) -> WorkbookProfile:
+    """P1-12 人工指定单 Sheet/物理表头，复用 P1-08 结构适配。
+
+    返回结构供映射/清洗/模板链路消费；不赋予输入系统导出角色。
+    类型、样例等探查特征仍来自自动探查，实际处理范围以指定表头为准。
+    """
+    if not isinstance(sheet_name, str) or not sheet_name.strip():
+        raise SystemExportConfigError("Sheet 名必须是非空字符串")
+    if isinstance(header_row_number, bool) or not isinstance(header_row_number, int) or header_row_number < 1:
+        raise SystemExportConfigError("物理表头行必须是正整数")
+    raw = load_workbook(path)
+    sheet = next((s for s in raw.sheets if s.sheet_name == sheet_name), None)
+    if sheet is None:
+        raise SystemExportDataError(f"未找到 Sheet：{sheet_name}")
+    configured = _configured_sheet_profile(sheet, profile_workbook(path), header_row_number)
+    return WorkbookProfile(raw.path, (configured,), configured.issues)
+
+
 def ingest_system_export(
     path: str | Path,
     config: SystemExportConfig,

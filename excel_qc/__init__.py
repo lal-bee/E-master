@@ -105,6 +105,7 @@ from excel_qc.system_export import (
     SystemExportWorkbookResult,
     ingest_system_export,
     load_system_export_config,
+    profile_configured_sheet,
 )
 from excel_qc.source_verification import (
     ComparisonRuleKind,
@@ -195,6 +196,7 @@ from excel_qc.validation import (
 __version__ = "0.1.0"
 
 __all__ = [
+    "profile_configured_sheet",
     "ComparisonRuleKind",
     "FieldComparisonRule",
     "FieldComparisonStatus",

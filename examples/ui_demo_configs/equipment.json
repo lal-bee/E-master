@@ -1,0 +1,1 @@
+{"target_standard_field":"type_name","code_pattern":"D-[A-Z]+","rules":[{"aliases":["泵"],"standard_type_name":"水泵","system_code":"D-PUMP"},{"aliases":["风机"],"standard_type_name":"风机","system_code":"D-FAN"}]}
