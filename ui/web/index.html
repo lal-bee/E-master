@@ -1,9 +1,48 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>E-Master · Excel 数据质量工作台</title><link rel="stylesheet" href="/style.css"></head>
-<body><header><div class="brand">E<span>◆</span>MASTER</div><div>Excel 数据质量工作台</div><span class="local">● 本机运行 · 确定性规则</span></header>
-<main><div class="intro"><div><p class="eyebrow">数据整理 / 回源核验</p><h1>让每一步处理，都有据可查。</h1><p>原始文件只读。规则、处理值与来源坐标随结果保留。</p></div><span class="version">V1.1 · P1-12</span></div>
-<nav aria-label="操作流程"><button type="button" data-tab="prepare" class="active">01 原始资料整理</button><button type="button" data-tab="verify">02 导入后回源核验</button></nav>
-<div id="workspace"></div>
-<footer>单文件 · 单 Sheet · JSON 规则配置 ｜ 系统导入由用户在外部完成 ｜ 真实业务样本验证待办</footer></main>
-<script>const SESSION_TOKEN = "__SESSION_VALUE__";</script><script src="/app.js"></script></body></html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="在本机预检查、转换设备台账 Excel，并下载处理结果。">
+  <title>E-Master 设备台账数据标准化工具</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar"><div class="brand"><span class="brand-icon">E</span><span>E-Master</span><span class="brand-divider"></span><span class="brand-caption">设备台账转换</span></div><span class="local-badge"><i></i>本地工具</span></header>
+  <main>
+    <div class="intro"><span class="eyebrow">EXCEL · 数据整理</span><h1>E-Master 设备台账数据标准化工具</h1><p>上传设备台账，自动检查并统一字段格式，下载即可使用。</p></div>
+    <section class="panel upload-panel" aria-labelledby="upload-heading">
+      <div class="section-heading"><span class="step">01</span><h2 id="upload-heading">上传设备台账</h2><span class="section-note">每次处理一个文件</span></div>
+      <label class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="点击选择或拖拽 Excel 文件">
+        <input type="file" id="file-input" accept=".xlsx" hidden>
+        <svg class="upload-icon" viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M28 6H13a3 3 0 0 0-3 3v30a3 3 0 0 0 3 3h22a3 3 0 0 0 3-3V16L28 6Z" stroke="currentColor" stroke-width="2"/><path d="M28 6v10h10M24 33V21m-5 5 5-5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <strong id="file-label">将 Excel 文件拖拽至此，或 <span>点击选择</span></strong>
+        <span id="file-detail">支持 .xlsx 格式，最大 32 MB</span>
+      </label>
+      <p class="upload-tip"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2 4 4v5c0 4 6 8 6 8s6-4 6-8V4l-6-2Z" stroke="currentColor" stroke-width="1.5"/><path d="m7 9 2 2 4-4" stroke="currentColor" stroke-width="1.5"/></svg>文件仅在本机处理，原始 Excel 不会被修改。</p>
+    </section>
+    <section class="panel rules-panel" aria-labelledby="rules-heading">
+      <div class="section-heading"><span class="step">02</span><h2 id="rules-heading">自动处理规则</h2><span class="section-note">固定规则，自动执行</span></div>
+      <div class="rules">
+        <article class="rule"><span class="rule-icon">↔</span><div><h3>设备小类名称 → 设备小类编码</h3><p>按现有映射表精确填充编码。未匹配名称会汇总显示并终止处理。</p></div></article>
+        <article class="rule"><span class="rule-icon">◷</span><div><h3>出厂日期 · 启用日期 · 设备制造日期</h3><p>统一为 <code>YYYY-MM-DD</code>，年月补为当月 01 日。只有年份时终止处理，非法日期置空。</p></div></article>
+        <article class="rule"><span class="rule-icon code-icon">{ }</span><div><h3>设备代码</h3><p>转为 <code>{"注册代码":"原始设备代码"}</code>。空值、null、纯空格和 “/” 保持为空。</p></div></article>
+      </div>
+      <div class="rules-footnote">第 1 行为表头，第 2 行起处理。其他字段、格式和辅助工作表保留。</div>
+    </section>
+    <div class="action-row"><span id="action-hint">选择文件后即可开始</span><button id="start-button" class="primary" disabled><span id="start-label">开始处理</span><span aria-hidden="true">→</span></button></div>
+    <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+    <section class="panel result-panel" id="precheck" aria-labelledby="precheck-heading" hidden>
+      <div class="result-heading"><span class="result-mark" id="check-mark" aria-hidden="true">✓</span><div><h2 id="precheck-heading">数据预检查</h2><p id="check-description"></p></div><span id="check-badge" class="badge"></span></div>
+      <div id="issue-container" hidden><div class="table-scroll" tabindex="0" aria-label="全部阻断问题"><table><thead><tr><th>工作表</th><th>Excel 行号</th><th>单元格</th><th>字段名</th><th>原值</th><th>问题说明</th></tr></thead><tbody id="issue-rows"></tbody></table></div></div>
+    </section>
+    <section class="panel result-panel" id="results" aria-labelledby="results-heading" hidden>
+      <div class="section-heading"><span class="step">03</span><h2 id="results-heading">转换完成</h2><span class="section-note" id="processed-sheets"></span></div>
+      <div class="stats" id="stats"></div>
+      <div class="download-row"><div><strong id="output-name"></strong><p>全部问题检查通过，处理结果已就绪。</p></div><a class="primary download" id="download-button" href="/" download>↓&nbsp; 下载处理结果</a></div>
+    </section>
+    <footer>只处理指定字段，保留原表结构。<span>让设备台账整理更简单。</span></footer>
+  </main>
+</body>
+</html>

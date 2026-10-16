@@ -1,1 +1,0 @@
-{"sheet_name":"演示数据","header_row_number":2,"standard_fields":[{"name":"record_id","aliases":["系统编号"]},{"name":"label","aliases":["系统名称"]},{"name":"quantity","aliases":["系统数量"]}],"primary_key_fields":["record_id"],"cleaning_rules":[{"standard_field":"quantity","kind":"number","rule_code":"DEMO_SYSTEM_NUMBER"}]}

@@ -1,1 +1,0 @@
-{"key_fields":["record_id"],"comparison_fields":["label","quantity"],"comparison_rules":[{"standard_field":"quantity","kind":"NUMBER"}]}

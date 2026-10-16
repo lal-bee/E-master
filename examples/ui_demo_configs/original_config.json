@@ -1,1 +1,0 @@
-{"sheet_name":"演示数据","header_row_number":2,"standard_fields":[{"name":"record_id","aliases":["源编号"]},{"name":"label","aliases":["源名称"]},{"name":"quantity","aliases":["源数量"]}],"primary_key_fields":["record_id"],"cleaning_rules":[{"standard_field":"quantity","kind":"number","rule_code":"DEMO_SOURCE_NUMBER"}]}

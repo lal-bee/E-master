@@ -1,41 +1,39 @@
-"""独立本地入口：python -m ui.local_app，仅监听 127.0.0.1。"""
+"""python -m ui.local_app：只监听本机的设备台账转换工具。"""
 from __future__ import annotations
 
 import argparse
-import base64
-import binascii
 import json
 import logging
 import secrets
 import tempfile
+from dataclasses import asdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from threading import Lock
-from urllib.parse import urlsplit
+from threading import Lock, BoundedSemaphore
+from urllib.parse import parse_qs, quote, urlsplit
 
-from examples.ui_demo import create_demo
-from excel_qc import profile_workbook
-from ui.workflows import ROLES, WorkflowError, WorkflowSession, display_value, read_json, user_message
+from excel_qc import WorkbookError, convert_workbook
+from excel_qc.rules import DEFAULT_MAPPING, MappingError
 
 ASSETS = Path(__file__).with_name("web")
-MAX_REQUEST = 48 * 1024 * 1024
+MAX_UPLOAD = 32 * 1024 * 1024
+XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, port=8765, root=None):
+    def __init__(self, port=8765, *, mapping_path=DEFAULT_MAPPING):
+        self.outputs = {}
+        self.output_lock = Lock()
+        self.processing = BoundedSemaphore(2)
+        self.mapping_path = Path(mapping_path)
+        self.temp = tempfile.TemporaryDirectory(prefix="e-master-converter-")
         super().__init__(("127.0.0.1", port), Handler)
-        self.root = Path(root) if root is not None else Path(tempfile.mkdtemp(prefix="e-master-ui-"))
-        self.root.mkdir(parents=True, exist_ok=True)
-        self.sessions = {}
-        self.session_lock = Lock()
 
-    def new_session(self):
-        token = secrets.token_urlsafe(32)
-        with self.session_lock:
-            self.sessions[token] = {flow: WorkflowSession(self.root / token / flow) for flow in ROLES}
-        return token
+    def server_close(self):
+        super().server_close()
+        self.temp.cleanup()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -49,132 +47,120 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")
         if filename:
-            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+            self.send_header("Content-Disposition", f"attachment; filename=\"result.xlsx\"; filename*=UTF-8''{quote(filename)}")
         self.end_headers()
         self.wfile.write(data)
 
     def send_json(self, status, value):
-        self.send_bytes(status, json.dumps(value, ensure_ascii=False, allow_nan=False).encode("utf-8"),
-                        "application/json; charset=utf-8")
+        self.send_bytes(status, json.dumps(value, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
 
     def local_request(self):
-        address = f"127.0.0.1:{self.server.server_port}"
-        if self.headers.get("Host") not in {address, f"localhost:{self.server.server_port}"}:
-            raise WorkflowError("请通过本机回环地址访问")
-        origin = self.headers.get("Origin")
-        if origin and origin not in {f"http://{address}", f"http://localhost:{self.server.server_port}"}:
-            raise WorkflowError("不接受其他网页发起的请求")
+        allowed = {f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}"}
+        if self.headers.get("Host") not in allowed:
+            raise PermissionError("请通过本机地址访问")
+        if self.headers.get("Origin") and self.headers["Origin"] not in {"http://" + host for host in allowed}:
+            raise PermissionError("不接受其他网页发起的请求")
 
     def do_GET(self):
         try:
             self.local_request()
             path = urlsplit(self.path).path
-            if path == "/":
-                token = self.server.new_session()
-                content = (ASSETS / "index.html").read_text(encoding="utf-8").replace("__SESSION_VALUE__", token)
-                self.send_bytes(200, content.encode("utf-8"), "text/html; charset=utf-8")
-            elif path in {"/app.js", "/style.css"}:
-                content_type = "text/javascript; charset=utf-8" if path.endswith(".js") else "text/css; charset=utf-8"
-                self.send_bytes(200, (ASSETS / path[1:]).read_bytes(), content_type)
+            if path in {"/", "/app.js", "/style.css"}:
+                asset = ASSETS / ("index.html" if path == "/" else path[1:])
+                content_type = {".html": "text/html", ".js": "text/javascript", ".css": "text/css"}[asset.suffix]
+                self.send_bytes(200, asset.read_bytes(), content_type + "; charset=utf-8")
+            elif path.startswith("/api/download/"):
+                token = path.removeprefix("/api/download/")
+                with self.server.output_lock:
+                    output = self.server.outputs.get(token)
+                    if output is None:
+                        self.send_json(404, {"error": "处理结果已失效，请重新处理"})
+                        return
+                    data = output[0].read_bytes()
+                self.send_bytes(200, data, XLSX_TYPE, output[1])
+            elif path == "/favicon.ico":
+                self.send_bytes(204, b"", "image/x-icon")
             else:
                 self.send_json(404, {"error": "页面不存在"})
-        except WorkflowError as exc:
+        except PermissionError as exc:
             self.send_json(403, {"error": str(exc)})
 
     def do_POST(self):
-        session = None
         acquired = False
         try:
             self.local_request()
-            token = self.headers.get("X-Session-Token", "")
-            sessions = self.server.sessions.get(token)
-            if sessions is None:
-                self.send_json(403, {"error": "会话已失效，请刷新页面并重新选择文件"})
-                return
-            size = int(self.headers.get("Content-Length", "0"))
-            if not 0 < size <= MAX_REQUEST:
-                raise WorkflowError("请求过大或为空，单个文件请控制在 32 MB 以内")
-            payload = json.loads(self.rfile.read(size))
-            if not isinstance(payload, dict) or payload.get("flow") not in ROLES:
-                raise WorkflowError("操作流程无效")
-            flow = payload["flow"]
-            session = sessions[flow]
-            acquired = session.lock.acquire(blocking=False)
-            if not acquired:
-                self.send_json(409, {"error": "当前流程正在处理，请等待完成"})
-                return
-            action = urlsplit(self.path).path
-            if action == "/api/upload":
-                session.clear_input(flow, payload["role"])
-                try:
-                    data = base64.b64decode(payload["data"], validate=True)
-                except (binascii.Error, ValueError, TypeError) as exc:
-                    raise WorkflowError("上传文件内容无效，请重新选择文件") from exc
-                response = session.upload(flow, payload["role"], payload["name"], data)
-            elif action == "/api/settings":
-                session.configure(payload["settings"])
-                response = {"revision": session.revision}
-            elif action == "/api/invalidate":
-                if "role" in payload:
-                    session.clear_input(flow, payload["role"])
-                else:
-                    session.invalidate()
-                response = {"revision": session.revision}
-            elif action == "/api/demo":
-                session.invalidate()
-                session.files = {}
-                session.settings = {}
-                demo = create_demo(session.root / "demo")
-                if payload.get("fail") and flow == "prepare":
-                    demo[flow]["source"] = demo["fail_source"]
-                session.files = demo[flow]
-                session.settings = demo["settings"] if flow == "prepare" else {}
-                response = {"revision": session.revision, "settings": session.settings, "files": {}}
-                for role, path in session.files.items():
-                    preview = display_value(profile_workbook(path)) if path.suffix == ".xlsx" else read_json(path)
-                    response["files"][role] = {"name": path.name, "preview": preview}
-            elif action == "/api/run":
-                if flow == "verify" and payload.get("original_confirmed") is not True:
-                    raise WorkflowError("请确认回源基准是最初收集的原始源文档")
-                response = session.run(flow, payload.get("revision"))
-            elif action == "/api/export":
-                output = session.export(flow, payload.get("revision"))
-                self.send_bytes(200, output.read_bytes(),
-                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", output.name)
-                return
-            else:
+            url = urlsplit(self.path)
+            if url.path != "/api/convert":
                 self.send_json(404, {"error": "操作不存在"})
                 return
+            length = int(self.headers.get("Content-Length", "0"))
+            if not 0 < length <= MAX_UPLOAD:
+                raise WorkbookError("请选择 32 MB 以内的 .xlsx 文件")
+            filename = parse_qs(url.query).get("filename", [""])[0].replace("\\", "/").rsplit("/", 1)[-1]
+            if not filename or Path(filename).suffix.lower() != ".xlsx":
+                raise WorkbookError("仅支持 .xlsx 文件")
+            acquired = self.server.processing.acquire(blocking=False)
+            if not acquired:
+                self.send_json(409, {"error": "工具正在处理其他文件，请稍后重试"})
+                return
+            self.connection.settimeout(60)
+            data = self.rfile.read(length)
+            if len(data) != length:
+                raise WorkbookError("文件上传不完整，请重新选择文件")
+            result = convert_workbook(data, self.server.mapping_path)
+            response = {
+                "success": result.success,
+                "issues": [asdict(issue) for issue in result.issues],
+                "sheets": result.sheets,
+                "skipped_sheets": result.skipped_sheets,
+                "rows": result.rows,
+            }
+            if result.success:
+                token = secrets.token_urlsafe(24)
+                output = Path(self.server.temp.name) / (token + ".xlsx")
+                result.save(output)
+                output_name = Path(filename).stem + "_处理结果.xlsx"
+                with self.server.output_lock:
+                    # 保持本地临时目录有界，移除最早的下载副本。
+                    if len(self.server.outputs) >= 32:
+                        oldest = next(iter(self.server.outputs))
+                        self.server.outputs.pop(oldest)[0].unlink(missing_ok=True)
+                    self.server.outputs[token] = (output, output_name)
+                response.update({
+                    "download_url": "/api/download/" + token,
+                    "filename": output_name,
+                    "subcategory_filled": result.subcategory_filled,
+                    "dates_converted": result.dates_converted,
+                    "dates_cleared": result.dates_cleared,
+                    "codes_formatted": result.codes_formatted,
+                })
             self.send_json(200, response)
-        except Exception as exc:
-            # 领域错误直接给中文提示，非预期异常仅在维护终端记录堆栈。
-            message = user_message(exc)
-            if message.startswith("处理失败"):
-                logging.exception("P1-12 本地操作失败")
-            self.send_json(400, {"error": message, "revision": session.revision if session else None})
+        except PermissionError as exc:
+            self.send_json(403, {"error": str(exc)})
+        except (WorkbookError, MappingError, ValueError, TimeoutError) as exc:
+            self.send_json(400, {"error": str(exc)})
+        except Exception:
+            logging.exception("Excel 转换失败")
+            self.send_json(500, {"error": "文件处理失败，请检查文件后重新执行"})
         finally:
             if acquired:
-                session.lock.release()
+                self.server.processing.release()
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description="E-Master 设备台账 Excel 格式转换工具")
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    try:
-        server = LocalServer(args.port)
-    except OSError as exc:
-        parser.exit(1, f"本地服务启动失败：{exc}。可用 --port 8766 更换端口。\n")
-    print(f"E-Master UI: http://127.0.0.1:{server.server_port}", flush=True)
-    print(f"Session files retained at: {server.root}", flush=True)
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        server.server_close()
+    with LocalServer(args.port) as server:
+        print(f"E-Master 已启动：http://127.0.0.1:{server.server_port}", flush=True)
+        print("按 Ctrl+C 停止。原始 Excel 始终只读。", flush=True)
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            pass
 
 
 if __name__ == "__main__":
